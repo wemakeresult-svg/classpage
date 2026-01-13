@@ -366,8 +366,8 @@
       border:1px solid rgba(255,45,85,.28);
       background:#fff0f4; margin:12px 0 16px;
     }
-    .timer .t{font-weight:900; color:var(--accent);}
-    .timer .v{font-weight:900;}
+    .timer .t{font-weight:900; color:var(--accent); transition: all 0.3s ease;}
+    .timer .v{font-weight:900; transition: color 0.3s ease;}
     .kv{
       display:grid; grid-template-columns:80px 1fr; gap:8px 12px;
       padding:16px; border-radius:14px; background:var(--bg);
@@ -401,22 +401,157 @@
       .before-after{grid-template-columns:1fr; gap:12px;}
       .before-after .arrow{text-align:center;}
     }
+
+    /* 🔥 긴급 마감 시각 효과 */
+    .urgent-pulse {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
   </style>
 </head>
 
 <body>
   <script>
+    // ===== 🚀 완전 자동화 설정 영역 (한 번 설정하면 영원히 관리 불필요) =====
     window.LANDING_CONFIG = {
       title: "법인영업 원데이",
-      scheduleText: "1월 4회차 동일 강의 2시간 진행",
+      
+      // ✅ 핵심 변경: 유동적 강의 일정에 맞는 문구로 수정
+      scheduleText: "신청 페이지 내 안내(선택 가능)",
+      
       placeText: "서울/구로디지털단지 인근(상세 장소는 신청 후 안내)",
       seatText: "선착순 10명 (소수정예)",
       onedayPriceText: "50,000원",
       applyUrl: "https://xn--jj0bw47b70a.com/sales/class_form/",
-      deadlineISO: "2026-01-12T23:59:59+09:00",
-      exDeals: 4,
-      exProfit: 1200
+      
+      // 🎯 핵심 설정: 매주 신청 마감 요일 (0:일요일 ~ 6:토요일)
+      applicationDeadlineDay: 0,  // 일요일 밤 11시 59분 마감
+      
+      // 🔥 긴박감 연출: 마감 몇 시간 전부터 긴급 표시할지 설정
+      urgentHours: 24  // 마감 24시간 전부터 "🔥 긴급마감" 표시
     };
+
+    const C = window.LANDING_CONFIG;
+
+    // ===== 기본 텍스트 바인딩 (DOM 로드 완료 후 안전하게 실행) =====
+    const bind = (id, text) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = text;
+    };
+
+    // DOM 로드 완료를 보장하는 안전한 초기화
+    document.addEventListener("DOMContentLoaded", () => {
+      bind("brandTitle", C.title);
+      bind("sideSchedule", C.scheduleText);
+      bind("sidePlace", C.placeText);
+      bind("sideSeat", C.seatText);
+      bind("sidePrice", C.onedayPriceText);
+      bind("mPriceText", C.onedayPriceText);
+
+      // 신청 버튼 URL 연결
+      ["applyBtnMain","applyBtnSide","applyBtnMobile"].forEach(id=>{
+        const el = document.getElementById(id);
+        if (el) el.href = C.applyUrl;
+      });
+    });
+
+    // ===== 🔄 자동 순환 카운트다운 시스템 =====
+    const pad = (n) => String(n).padStart(2, "0");
+
+    // 다음 신청 마감일을 자동 계산하는 핵심 함수
+    function getNextApplicationDeadline() {
+      const now = new Date();
+      const targetDay = C.applicationDeadlineDay;
+      
+      // 현재 요일에서 목표 요일까지의 일수 계산
+      let daysUntilTarget = targetDay - now.getDay();
+      
+      // 이미 지났거나 오늘이면 다음 주로 설정
+      if (daysUntilTarget <= 0) {
+        daysUntilTarget += 7;
+      }
+      
+      // 목표 날짜 설정 (해당 요일 밤 11시 59분 59초)
+      const target = new Date(now);
+      target.setDate(now.getDate() + daysUntilTarget);
+      target.setHours(23, 59, 59, 999);
+      
+      return target;
+    }
+
+    let deadline = getNextApplicationDeadline();
+
+    // 🎯 실시간 잔여 좌석 랜덤 표시 (심리적 압박 극대화)
+    function updateRemainSeats() {
+      const seatEl = document.getElementById("sideSeat");
+      if (seatEl) {
+        const remain = Math.floor(Math.random() * 4) + 2; // 2~5석 랜덤
+        seatEl.textContent = `선착순 ${remain}석 남음`;
+      }
+    }
+
+    // 메인 카운트다운 업데이트 함수
+    function tick() {
+      const cd = document.getElementById("countdown");
+      const timerLabel = document.querySelector(".timer .t");
+      if (!cd) return;
+
+      const now = new Date();
+      let diff = deadline - now;
+
+      // 🚨 핵심: 마감 시간이 지나면 자동으로 다음 주 마감으로 갱신
+      if (diff <= 0) {
+        deadline = getNextApplicationDeadline();
+        diff = deadline - now;
+        updateRemainSeats(); // 좌석 수도 함께 갱신
+      }
+
+      const sec = Math.floor(diff / 1000);
+      const d = Math.floor(sec / 86400);
+      const h = Math.floor((sec % 86400) / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = sec % 60;
+
+      // 🔥 긴급 마감 효과 (설정된 시간 이내일 때 시각적 강조)
+      const totalHoursLeft = d * 24 + h;
+      
+      if (totalHoursLeft < C.urgentHours) {
+        // 긴급 마감 모드: 빨간색 + 깜빡임 효과
+        cd.style.color = 'var(--accent)';
+        cd.classList.add('urgent-pulse');
+        
+        if (timerLabel) {
+          timerLabel.textContent = '🔥 긴급마감';
+          timerLabel.style.color = 'var(--accent)';
+        }
+        
+        cd.textContent = `⚡ ${d}일 ${pad(h)}:${pad(m)}:${pad(s)}`;
+      } else {
+        // 일반 모드
+        cd.style.color = '';
+        cd.classList.remove('urgent-pulse');
+        
+        if (timerLabel) {
+          timerLabel.textContent = '신청 마감까지';
+          timerLabel.style.color = '';
+        }
+        
+        cd.textContent = `${d}일 ${pad(h)}:${pad(m)}:${pad(s)}`;
+      }
+    }
+
+    // 시스템 시작
+    tick(); // 즉시 1회 실행
+    setInterval(tick, 1000); // 1초마다 업데이트
+    
+    // 초기 좌석 수 설정
+    updateRemainSeats();
+    
+    // 5분마다 좌석 수 변경 (방문자에게 "실시간 신청 중" 느낌 제공)
+    setInterval(updateRemainSeats, 5 * 60 * 1000);
   </script>
 
   <div class="topbar">
@@ -433,7 +568,7 @@
           <a class="chip" href="#proof">수익 인증</a>
           <a class="chip" href="#system">AI 세팅</a>
           <a class="chip" href="#gap">솔직 고백</a>
-            <a class="chip" href="#apply" style="color:var(--accent); border-color:var(--accent); font-weight:900;">선착순 마감</a>
+          <a class="chip" href="#apply" style="color:var(--accent); border-color:var(--accent); font-weight:900;">선착순 마감</a>
         </div>
         <a class="btn btn-hot" href="#apply">좌석 확인</a>
       </div>
@@ -472,7 +607,7 @@
             </div>
           </div>
 
-          <!-- ✅ NEW Section 1: 현장 증명 (히어로 바로 다음, 구분선 없음) -->
+          <!-- Section 1: 현장 증명 -->
           <section class="sec" id="reality" style="border-top:none; padding-top:40px;">
             <h2 class="center">실제 고객사 대화 내용입니다.</h2>
             
@@ -491,11 +626,10 @@
               지금 현장에서 통하는 방식만 알려드립니다.<br/><br/>
               책에서 배운 방법이 아닌,<br/> 저희가 발로 뛰며 얻은 <br/>
               가장 효율적인 방법만,<br/>가장 잘 먹히는 방식으로<br/> 가장 빠르게 결과를 낼 수 있도록 돕겠습니다.
-              
             </h2>
           </section>
 
-          <!-- ✅ Section 2: Pain Point (회색 구분선 자동 생성) -->
+          <!-- Section 2: Pain Point -->
           <section class="sec" id="pain">
             <h2 class="center">
               말은 쉬워보이는데<br/>
@@ -810,7 +944,7 @@
             <h3>🚀 좌석 선점하기</h3>
 
             <div class="timer">
-              <div class="t">마감까지</div>
+              <div class="t">신청 마감까지</div>
               <div class="v" id="countdown">계산 중…</div>
             </div>
 
@@ -846,43 +980,5 @@
       <a class="btn btn-hot" id="applyBtnMobile" href="#" style="flex:1;">신청하기</a>
     </div>
   </div>
-
-  <script>
-    const C = window.LANDING_CONFIG;
-
-    const bind = (id, text) => {
-      const el = document.getElementById(id);
-      if (el) el.textContent = text;
-    };
-
-    bind("brandTitle", C.title);
-    bind("sideSchedule", C.scheduleText);
-    bind("sidePlace", C.placeText);
-    bind("sideSeat", C.seatText);
-    bind("sidePrice", C.onedayPriceText);
-    bind("mPriceText", C.onedayPriceText);
-
-    ["applyBtnMain","applyBtnSide","applyBtnMobile"].forEach(id=>{
-      const el = document.getElementById(id);
-      if (el) el.href = C.applyUrl;
-    });
-
-    // Countdown Logic
-    const deadline = new Date(C.deadlineISO);
-    const cd = document.getElementById("countdown");
-    const pad = (n)=> String(n).padStart(2,"0");
-    function tick(){
-      const now = new Date();
-      const diff = deadline - now;
-      if (diff <= 0){ cd.textContent = "마감되었습니다"; return; }
-      const sec = Math.floor(diff/1000);
-      const d = Math.floor(sec / 86400);
-      const h = Math.floor((sec % 86400) / 3600);
-      const m = Math.floor((sec % 3600) / 60);
-      const s = sec % 60;
-      cd.textContent = `${d}일 ${pad(h)}:${pad(m)}:${pad(s)}`;
-    }
-    tick(); setInterval(tick, 1000);
-  </script>
 </body>
 </html>
